@@ -5,6 +5,7 @@ window.onload = function() {
     var stats;
     var mouseX, mouseY;
     var camera, scene, renderer, light, sunLight;
+    var controls;
 
     var mouseX = 0;
     var mouseY = 0;
@@ -12,12 +13,12 @@ window.onload = function() {
     var windowHalfX = window.innerWidth * 0.5;
     var windowHalfY = window.innerHeight * 0.5;
 
+    var clock = new THREE.Clock();
+
     init();
     render();
 
     function init() {
-
-        // create a div element to contain the render
         container = document.createElement('div');
         document.body.appendChild(container);
 
@@ -26,14 +27,15 @@ window.onload = function() {
 
         // camera
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 100000);
-        camera.position.set(0, 500, 1000);
-        camera.lookAt(scene.position);
-        //scene.add(camera);
+        camera.position.set(0, 500, 1000);    
 
-        scene.add(new THREE.AmbientLight(0x404040));
+        controls = new THREE.FlyControls( camera );
+        controls.movementSpeed = 1000;
+        controls.domElement = container;
+        controls.rollSpeed = Math.PI / 24;
+        controls.autoForward = false;
+        controls.dragToLook = true;
 
-
-        // loading cube material
         var path = "resources/textures/skybox/";
         var format = '.jpg';
         var urls = [
@@ -55,46 +57,35 @@ window.onload = function() {
         });
 
         var skybox = new THREE.Mesh(new THREE.CubeGeometry(100000, 100000, 100000), material);
-        //scene.add(skybox);
+        skybox.material.opacity = 0.7;
+        scene.add(skybox);
 
 
         // create the particle variables
-        var particleCount = 18000,
-            particles = new THREE.Geometry(),
-            pMaterial = new THREE.PointsMaterial({
-                color: 0xFFFFFF,
-                size: 20
-            });
+        var particleCount = 18000;
+        var particles = new THREE.Geometry();
+        var pMaterial = new THREE.PointsMaterial({color: 0xFFFFFF, size: 20});
 
-        // now create the individual particles
         for (var p = 0; p < particleCount; p++) {
-
-            // create a particle with random
-            // position values, -250 -> 250
-            var pX = Math.random() * 50000 - 25000,
-                pY = Math.random() * 50000 - 25000,
-                pZ = Math.random() * 50000 - 25000,
-                particle = new THREE.Vector3(pX, pY, pZ);
-
-            // add it to the geometry
-            particles.vertices.push(particle);
+            var pX = Math.random() * 50000 - 25000;
+            var pY = Math.pow(Math.random(), 2) * 50000 - 25000;
+            var pZ = Math.random() * 50000 - 25000;
+            
+            particles.vertices.push(new THREE.Vector3(pX, pY, pZ));
         }
 
-        // create the particle system
-        var particleSystem = new THREE.ParticleSystem(
-            particles,
-            pMaterial);
+        var particleSystem = new THREE.ParticleSystem(particles, pMaterial);
 
         // add it to the scene
-        scene.add(particleSystem);
+        //scene.add(particleSystem);
+        //camera.lookAt(scene.position);
+        scene.add(camera);
+
+        scene.add(new THREE.AmbientLight(0x404040));
 
         //renderer
-        renderer = new THREE.WebGLRenderer({
-            antialias: true
-        });
+        renderer = new THREE.WebGLRenderer({antialias: true, logarithmicDepthBuffer: true});
         renderer.setSize(window.innerWidth, window.innerHeight);
-
-        // add renderer
         container.appendChild(renderer.domElement);
 
         // stats
@@ -108,13 +99,15 @@ window.onload = function() {
         document.addEventListener('mousemove', onMouseMove, false);
         // stage resize
         window.addEventListener('resize', onWindowResize, false);
+        window.addEventListener('DOMMouseScroll', mousewheel, false);
+        window.addEventListener('mousewheel', mousewheel, false);
     }
 
     function onWindowResize(e) {
-        windowHalfX = window.innerWidth * 0.5,
-            windowHalfY = window.innerHeight * 0.5,
+        windowHalfX = window.innerWidth * 0.5;
+        windowHalfY = window.innerHeight * 0.5;
 
-            camera.aspect = window.innerWidth / window.innerHeight;
+        camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
 
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -125,13 +118,19 @@ window.onload = function() {
         mouseY = (e.clientY - windowHalfY) * 10;
     }
 
+    function mousewheel( event )
+    {
+        var e = window.event || event;
+        var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)))
+        camera.fov += delta;
+        camera.updateProjectionMatrix();
+    }
+
     function render() {
-        console.log("asd");
+        var delta = clock.getDelta();
         requestAnimationFrame(render);
-        camera.position.x += (mouseX - camera.position.x) * .02;
-        camera.position.y += (-mouseY - camera.position.y) * .02;
-        camera.lookAt(scene.position);
         renderer.render(scene, camera);
         stats.update();
+        controls.update( delta );
     }
 }
